@@ -216,12 +216,8 @@ class NumberPicker @JvmOverloads constructor(
             } else {
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        requestFocus()
                         setProgress(progress + stepSize)
-                        editText.clearFocus()
-                        hideKeyboard()
 
-                        upButton.requestFocus()
                         upButton.isPressed = true
                         buttonInterval?.dispose()
 
@@ -253,12 +249,8 @@ class NumberPicker @JvmOverloads constructor(
             } else {
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        requestFocus()
                         setProgress(progress - stepSize)
-                        editText.clearFocus()
-                        hideKeyboard()
 
-                        downButton.requestFocus()
                         downButton.isPressed = true
                         buttonInterval?.dispose()
 
