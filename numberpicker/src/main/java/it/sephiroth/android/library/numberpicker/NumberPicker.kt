@@ -13,22 +13,19 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.AppCompatImageButton
+import androidx.core.content.ContextCompat
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
-import it.sephiroth.android.library.uigestures.*
-import it.sephiroth.android.library.xtooltip.ClosePolicy
 import it.sephiroth.android.library.xtooltip.Tooltip
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sin
 
 
 class NumberPicker @JvmOverloads constructor(
@@ -48,21 +45,16 @@ class NumberPicker @JvmOverloads constructor(
     private lateinit var editText: EditText
     private lateinit var upButton: AppCompatImageButton
     private lateinit var downButton: AppCompatImageButton
-    private lateinit var tracker: Tracker
+    private var tracker: Tracker
 
-    private var arrowStyle: Int
+    private var arrowTint: Int
     private var editTextStyleId: Int
     private var tooltipStyleId: Int
-
-    private val delegate = UIGestureRecognizerDelegate()
-    private lateinit var longGesture: UILongPressGestureRecognizer
-    private lateinit var tapGesture: UITapGestureRecognizer
-    private var disableGestures: Boolean = false
 
     private var tooltip: Tooltip? = null
     private var maxDistance: Int
 
-    private lateinit var data: Data
+    private var data: Data
 
     private var callback = { newValue: Int ->
         setProgress(newValue)
@@ -70,54 +62,8 @@ class NumberPicker @JvmOverloads constructor(
 
     private var buttonInterval: Disposable? = null
 
-    private val longGestureListener = { it: UIGestureRecognizer ->
-        Timber.i("longGestureListener = ${it.state}")
-        when {
-            it.state == UIGestureRecognizer.State.Began -> {
-                requestFocus()
-                editText.isSelected = false
-                editText.clearFocus()
-
-                tracker.begin(it.downLocationX, it.downLocationY)
-                startInteraction()
-            }
-
-            it.state == UIGestureRecognizer.State.Ended -> {
-                tracker.end()
-                endInteraction()
-            }
-
-            it.state == UIGestureRecognizer.State.Changed -> {
-                var diff =
-                        if (data.arrowOrientation == VERTICAL) it.currentLocationY - it.downLocationY else it.currentLocationX - it.downLocationX
-                if (diff > tracker.minDistance) {
-                    diff = tracker.minDistance
-                } else if (diff < -tracker.minDistance) {
-                    diff = -tracker.minDistance
-                }
-                val final2 = sin((diff / tracker.minDistance) * Math.PI / 2).toFloat()
-
-                tooltip?.let { tooltip ->
-                    when (data.arrowOrientation) {
-                        VERTICAL -> tooltip.offsetTo(tooltip.offsetX, final2 / 2 * tracker.minDistance)
-                        HORIZONTAL -> tooltip.offsetTo(final2 / 2 * tracker.minDistance, tooltip.offsetY)
-                    }
-                }
-
-                tracker.addMovement(it.currentLocationX, it.currentLocationY)
-            }
-        }
-    }
-
-    private val tapGestureListener = { _: UIGestureRecognizer ->
-        requestFocus()
-        if (!editText.isFocused)
-            editText.requestFocus()
-    }
-
     @Suppress("MemberVisibilityCanBePrivate")
     fun setProgress(value: Int, fromUser: Boolean = true) {
-        // Timber.i("setProgress($value, $fromUser)")
         if (value != data.value) {
             data.value = value
             tooltip?.update(data.value.toString())
@@ -151,8 +97,6 @@ class NumberPicker @JvmOverloads constructor(
             data.stepSize = value
         }
 
-    private var initialized = false
-
     init {
         setWillNotDraw(false)
         isFocusable = true
@@ -165,20 +109,19 @@ class NumberPicker @JvmOverloads constructor(
             val maxValue = array.getInteger(R.styleable.NumberPicker_picker_max, 100)
             val minValue = array.getInteger(R.styleable.NumberPicker_picker_min, 0)
             val stepSize = array.getInteger(R.styleable.NumberPicker_picker_stepSize, 1)
-            val arrowOrientation = array.getInteger(R.styleable.NumberPicker_picker_orientation, LinearLayout.VERTICAL)
+            val arrowOrientation = array.getInteger(R.styleable.NumberPicker_picker_orientation, VERTICAL)
             val layoutOrientation = array.getInteger(R.styleable.NumberPicker_picker_layout_orientation, HORIZONTAL)
             val value = array.getInteger(R.styleable.NumberPicker_android_progress, 0)
-            arrowStyle = array.getResourceId(R.styleable.NumberPicker_picker_arrowStyle, 0)
+            arrowTint = array.getResourceId(R.styleable.NumberPicker_picker_arrowTint, 0)
             background = array.getDrawable(R.styleable.NumberPicker_android_background)
             editTextStyleId = array.getResourceId(R.styleable.NumberPicker_picker_editTextStyle, R.style.NumberPicker_EditTextStyle)
             tooltipStyleId = array.getResourceId(R.styleable.NumberPicker_picker_tooltipStyle, R.style.NumberPicker_ToolTipStyle)
-            disableGestures = array.getBoolean(R.styleable.NumberPicker_picker_disableGestures, false)
             maxDistance = context.resources.getDimensionPixelSize(R.dimen.picker_distance_max)
 
             data = Data(value, minValue, maxValue, stepSize, arrowOrientation)
 
-            val tracker_type = array.getInteger(R.styleable.NumberPicker_picker_tracker, TRACKER_LINEAR)
-            tracker = when (tracker_type) {
+            val trackerType = array.getInteger(R.styleable.NumberPicker_picker_tracker, TRACKER_LINEAR)
+            tracker = when (trackerType) {
                 TRACKER_LINEAR -> LinearTracker(this, maxDistance, arrowOrientation, callback)
                 TRACKER_EXPONENTIAL -> ExponentialTracker(this, maxDistance, arrowOrientation, callback)
                 else -> {
@@ -198,14 +141,6 @@ class NumberPicker @JvmOverloads constructor(
         }
 
         initializeButtonActions()
-        if (!disableGestures) {
-            initializeGestures()
-        }
-    }
-
-    override fun setEnabled(enabled: Boolean) {
-        super.setEnabled(enabled)
-        delegate.isEnabled = enabled
     }
 
     private fun hideKeyboard() {
@@ -217,6 +152,10 @@ class NumberPicker @JvmOverloads constructor(
         upButton = AppCompatImageButton(context)
         upButton.setImageResource(R.drawable.arrow_up_selector_24)
         upButton.setBackgroundResource(R.drawable.arrow_up_background)
+
+        if (arrowTint > 0) {
+            upButton.setColorFilter(ContextCompat.getColor(context, arrowTint))
+        }
 
         if (data.arrowOrientation == HORIZONTAL) {
             upButton.rotation = 90f
@@ -236,10 +175,14 @@ class NumberPicker @JvmOverloads constructor(
         downButton.setBackgroundResource(R.drawable.arrow_up_background)
         downButton.rotation = if (data.arrowOrientation == VERTICAL) 180f else -90f
 
+        if (arrowTint > 0) {
+            downButton.setColorFilter(ContextCompat.getColor(context, arrowTint))
+        }
+
         val upButtonLayoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         upButtonLayoutParams.weight = 0f
 
-        var isHorizontal = orientation == HORIZONTAL
+        val isHorizontal = orientation == HORIZONTAL
 
         val editTextLayoutParams = LayoutParams(
             if (isHorizontal) 0 else ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -271,8 +214,7 @@ class NumberPicker @JvmOverloads constructor(
             if (!isEnabled) {
                 false
             } else {
-                val action = event.actionMasked
-                when (action) {
+                when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         requestFocus()
                         setProgress(progress + stepSize)
@@ -309,8 +251,7 @@ class NumberPicker @JvmOverloads constructor(
             if (!isEnabled) {
                 false
             } else {
-                val action = event.actionMasked
-                when (action) {
+                when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         requestFocus()
                         setProgress(progress - stepSize)
@@ -346,16 +287,6 @@ class NumberPicker @JvmOverloads constructor(
             }
         }
 
-//        editText.doOnTextChanged { text, _, _, _ ->
-//            if (!text.isNullOrEmpty()) {
-//                try {
-//                    this.setProgress(Integer.valueOf(text.toString()))
-//                } catch (e: NumberFormatException) {
-//                    Timber.e(e)
-//                }
-//            }
-//        }
-
         editText.setOnFocusChangeListener { _, hasFocus ->
             setBackgroundFocused(hasFocus)
 
@@ -387,65 +318,6 @@ class NumberPicker @JvmOverloads constructor(
         }
     }
 
-    private fun initializeGestures() {
-        longGesture = UILongPressGestureRecognizer(context)
-        longGesture.longPressTimeout = LONG_TAP_TIMEOUT
-        longGesture.actionListener = longGestureListener
-        longGesture.cancelsTouchesInView = false
-
-        tapGesture = UITapGestureRecognizer(context)
-        tapGesture.cancelsTouchesInView = false
-
-        delegate.addGestureRecognizer(longGesture)
-        delegate.addGestureRecognizer(tapGesture)
-
-        tapGesture.actionListener = tapGestureListener
-
-        delegate.isEnabled = isEnabled
-
-        editText.setGestureDelegate(delegate)
-    }
-
-    private fun startInteraction() {
-        animate().alpha(0.5f).start()
-
-        tooltip = Tooltip.Builder(context)
-            .anchor(editText, 0, 0, false)
-            .styleId(tooltipStyleId)
-            .arrow(true)
-            .closePolicy(ClosePolicy.TOUCH_NONE)
-            .overlay(false)
-            .showDuration(0)
-            .text(if (minValue.toString().length > maxValue.toString().length) minValue.toString() else maxValue.toString())
-            .animationStyle(if (orientation == VERTICAL) R.style.NumberPicker_AnimationVertical else R.style.NumberPicker_AnimationHorizontal)
-            .create()
-
-        tooltip?.doOnPrepare { tooltip ->
-            tooltip.contentView?.let { contentView ->
-                val textView = contentView.findViewById<TextView>(android.R.id.text1)
-                textView.measure(0, 0)
-                textView.minWidth = textView.measuredWidth
-            }
-        }
-
-        tooltip?.doOnShown { it.update(data.value.toString()) }
-        tooltip?.show(this, if (data.arrowOrientation == VERTICAL) Tooltip.Gravity.LEFT else Tooltip.Gravity.TOP, false)
-
-        numberPickerChangeListener?.onStartTrackingTouch(this)
-
-    }
-
-    private fun endInteraction() {
-        Timber.i("endInteraction")
-
-        animate().alpha(1.0f).start()
-
-        tooltip?.dismiss()
-        tooltip = null
-
-        numberPickerChangeListener?.onStopTrackingTouch(this)
-    }
-
     companion object {
 
         const val TRACKER_LINEAR = 0
@@ -453,12 +325,9 @@ class NumberPicker @JvmOverloads constructor(
 
         const val ARROW_BUTTON_INITIAL_DELAY = 800L
         const val ARROW_BUTTON_FRAME_DELAY = 16L
-        const val LONG_TAP_TIMEOUT = 300L
 
         val FOCUSED_STATE_ARRAY = intArrayOf(android.R.attr.state_focused)
         val UNFOCUSED_STATE_ARRAY = intArrayOf(0, -android.R.attr.state_focused)
-
-
     }
 }
 
@@ -570,11 +439,8 @@ internal class ExponentialTracker(
         Timber.i("addMovement($x, $y)")
 
         val currentPosition = if (arrowOrientation == LinearLayout.VERTICAL) -y else x
-        val diff: Float
-        val perc: Float
-
-        diff = max(-minDistance, min(currentPosition - downPosition, minDistance))
-        perc = (diff / minDistance)
+        val diff: Float = max(-minDistance, min(currentPosition - downPosition, minDistance))
+        val perc: Float = (diff / minDistance)
 
         direction = when {
             perc > 0 -> 1
@@ -607,13 +473,9 @@ internal class LinearTracker(
         Timber.i("addMovement($x, $y)")
         val currentPosition = if (arrowOrientation == LinearLayout.VERTICAL) -y else x
 
-        val diff: Float
-        val perc: Float
-        var finalValue: Int
-
-        diff = max(-minDistance, min(currentPosition - downPosition, minDistance))
-        perc = (diff / minDistance)
-        finalValue = initialValue + (abs(numberPicker.maxValue - numberPicker.minValue) * perc).toInt()
+        val diff: Float = max(-minDistance, min(currentPosition - downPosition, minDistance))
+        val perc: Float = (diff / minDistance)
+        var finalValue: Int = initialValue + (abs(numberPicker.maxValue - numberPicker.minValue) * perc).toInt()
 
         var diffValue = finalValue - numberPicker.progress
 

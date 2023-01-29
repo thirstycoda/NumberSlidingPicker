@@ -37,8 +37,6 @@
 
     <style name="NumberPicker.Filled">
         <item name="picker_orientation">vertical</item>
-
-        <item name="picker_arrowStyle">@style/NumberPicker.ArrowStyle</item>
         <item name="android:background">@drawable/mtrl_background_filled</item>
     </style>
 
@@ -48,7 +46,6 @@
 
     <style name="NumberPicker.Outlined">
         <item name="picker_orientation">vertical</item>
-        <item name="picker_arrowStyle">@style/NumberPicker.ArrowStyle</item>
         <item name="android:background">@drawable/mtrl_background_outlined</item>
     </style>
 
@@ -58,7 +55,6 @@
 
     <style name="NumberPicker.None">
         <item name="picker_orientation">vertical</item>
-        <item name="picker_arrowStyle">@style/NumberPicker.ArrowStyle</item>
         <item name="android:background">@null</item>
     </style>
 

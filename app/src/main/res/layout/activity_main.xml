@@ -65,7 +65,8 @@
             app:layout_constraintTop_toBottomOf="@+id/numberPicker"
             app:picker_editTextStyle="@style/NumberPicker.EditTextStyle.Disabled"
             app:picker_max="@{model.maxValue}"
-            app:picker_min="@{model.minValue}" />
+            app:picker_min="@{model.minValue}"
+            app:picker_arrowTint="@color/colorPrimary"/>
 
         <TextView
             android:id="@+id/textView2"
