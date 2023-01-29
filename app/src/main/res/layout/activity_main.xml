@@ -92,7 +92,8 @@
             app:layout_constraintTop_toBottomOf="@+id/numberPicker2"
             app:picker_max="@{model.maxValue}"
             app:picker_min="@{model.minValue}"
-            app:picker_tracker="exponential" />
+            app:picker_tracker="exponential"
+            app:picker_layout_orientation="vertical"/>
 
         <TextView
             android:id="@+id/textView3"

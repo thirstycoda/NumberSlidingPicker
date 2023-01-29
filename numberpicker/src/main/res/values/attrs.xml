@@ -21,6 +21,11 @@
             <enum name="vertical" value="1" />
         </attr>
 
+        <attr name="picker_layout_orientation" format="enum">
+            <enum name="horizontal" value="0" />
+            <enum name="vertical" value="1" />
+        </attr>
+
         <attr name="android:background" />
 
     </declare-styleable>

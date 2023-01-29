@@ -89,7 +89,7 @@ class NumberPicker @JvmOverloads constructor(
 
             it.state == UIGestureRecognizer.State.Changed -> {
                 var diff =
-                        if (data.orientation == VERTICAL) it.currentLocationY - it.downLocationY else it.currentLocationX - it.downLocationX
+                        if (data.arrowOrientation == VERTICAL) it.currentLocationY - it.downLocationY else it.currentLocationX - it.downLocationX
                 if (diff > tracker.minDistance) {
                     diff = tracker.minDistance
                 } else if (diff < -tracker.minDistance) {
@@ -98,7 +98,7 @@ class NumberPicker @JvmOverloads constructor(
                 val final2 = sin((diff / tracker.minDistance) * Math.PI / 2).toFloat()
 
                 tooltip?.let { tooltip ->
-                    when (data.orientation) {
+                    when (data.arrowOrientation) {
                         VERTICAL -> tooltip.offsetTo(tooltip.offsetX, final2 / 2 * tracker.minDistance)
                         HORIZONTAL -> tooltip.offsetTo(final2 / 2 * tracker.minDistance, tooltip.offsetY)
                     }
@@ -158,7 +158,6 @@ class NumberPicker @JvmOverloads constructor(
         isFocusable = true
         isFocusableInTouchMode = true
 
-        orientation = HORIZONTAL
         gravity = Gravity.CENTER
 
         val array = context.theme.obtainStyledAttributes(attrs, R.styleable.NumberPicker, defStyleAttr, defStyleRes)
@@ -166,7 +165,8 @@ class NumberPicker @JvmOverloads constructor(
             val maxValue = array.getInteger(R.styleable.NumberPicker_picker_max, 100)
             val minValue = array.getInteger(R.styleable.NumberPicker_picker_min, 0)
             val stepSize = array.getInteger(R.styleable.NumberPicker_picker_stepSize, 1)
-            val orientation = array.getInteger(R.styleable.NumberPicker_picker_orientation, LinearLayout.VERTICAL)
+            val arrowOrientation = array.getInteger(R.styleable.NumberPicker_picker_orientation, LinearLayout.VERTICAL)
+            val layoutOrientation = array.getInteger(R.styleable.NumberPicker_picker_layout_orientation, HORIZONTAL)
             val value = array.getInteger(R.styleable.NumberPicker_android_progress, 0)
             arrowStyle = array.getResourceId(R.styleable.NumberPicker_picker_arrowStyle, 0)
             background = array.getDrawable(R.styleable.NumberPicker_android_background)
@@ -175,16 +175,19 @@ class NumberPicker @JvmOverloads constructor(
             disableGestures = array.getBoolean(R.styleable.NumberPicker_picker_disableGestures, false)
             maxDistance = context.resources.getDimensionPixelSize(R.dimen.picker_distance_max)
 
-            data = Data(value, minValue, maxValue, stepSize, orientation)
+            data = Data(value, minValue, maxValue, stepSize, arrowOrientation)
 
             val tracker_type = array.getInteger(R.styleable.NumberPicker_picker_tracker, TRACKER_LINEAR)
             tracker = when (tracker_type) {
-                TRACKER_LINEAR -> LinearTracker(this, maxDistance, orientation, callback)
-                TRACKER_EXPONENTIAL -> ExponentialTracker(this, maxDistance, orientation, callback)
+                TRACKER_LINEAR -> LinearTracker(this, maxDistance, arrowOrientation, callback)
+                TRACKER_EXPONENTIAL -> ExponentialTracker(this, maxDistance, arrowOrientation, callback)
                 else -> {
-                    LinearTracker(this, maxDistance, orientation, callback)
+                    LinearTracker(this, maxDistance, arrowOrientation, callback)
                 }
             }
+
+            orientation = layoutOrientation
+
             inflateChildren()
 
             editText.setText(data.value.toString())
@@ -215,7 +218,7 @@ class NumberPicker @JvmOverloads constructor(
         upButton.setImageResource(R.drawable.arrow_up_selector_24)
         upButton.setBackgroundResource(R.drawable.arrow_up_background)
 
-        if (data.orientation == HORIZONTAL) {
+        if (data.arrowOrientation == HORIZONTAL) {
             upButton.rotation = 90f
         }
 
@@ -231,20 +234,35 @@ class NumberPicker @JvmOverloads constructor(
         downButton = AppCompatImageButton(context)
         downButton.setImageResource(R.drawable.arrow_up_selector_24)
         downButton.setBackgroundResource(R.drawable.arrow_up_background)
-        downButton.rotation = if (data.orientation == VERTICAL) 180f else -90f
+        downButton.rotation = if (data.arrowOrientation == VERTICAL) 180f else -90f
 
-        val params1 = LayoutParams(LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        params1.weight = 0f
+        val upButtonLayoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        upButtonLayoutParams.weight = 0f
 
-        val params2 = LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT)
-        params2.weight = 1f
+        var isHorizontal = orientation == HORIZONTAL
 
-        val params3 = LayoutParams(LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        params3.weight = 0f
+        val editTextLayoutParams = LayoutParams(
+            if (isHorizontal) 0 else ViewGroup.LayoutParams.WRAP_CONTENT,
+            if (isHorizontal) ViewGroup.LayoutParams.WRAP_CONTENT else 0)
 
-        addView(downButton, params3)
-        addView(editText, params2)
-        addView(upButton, params1)
+        editTextLayoutParams.weight = 1f
+
+        val downButtonLayoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        downButtonLayoutParams.weight = 0f
+
+        if (orientation == HORIZONTAL) {
+            addView(downButton, downButtonLayoutParams)
+        } else {
+            addView(upButton, upButtonLayoutParams)
+        }
+
+        addView(editText, editTextLayoutParams)
+
+        if (orientation == HORIZONTAL) {
+            addView(upButton, upButtonLayoutParams)
+        } else {
+            addView(downButton, downButtonLayoutParams)
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -411,7 +429,7 @@ class NumberPicker @JvmOverloads constructor(
         }
 
         tooltip?.doOnShown { it.update(data.value.toString()) }
-        tooltip?.show(this, if (data.orientation == VERTICAL) Tooltip.Gravity.LEFT else Tooltip.Gravity.TOP, false)
+        tooltip?.show(this, if (data.arrowOrientation == VERTICAL) Tooltip.Gravity.LEFT else Tooltip.Gravity.TOP, false)
 
         numberPickerChangeListener?.onStartTrackingTouch(this)
 
@@ -445,7 +463,7 @@ class NumberPicker @JvmOverloads constructor(
 }
 
 
-class Data(value: Int, minValue: Int, maxValue: Int, var stepSize: Int, val orientation: Int) {
+class Data(value: Int, minValue: Int, maxValue: Int, var stepSize: Int, val arrowOrientation: Int) {
     var value: Int = value
         set(value) {
             field = max(minValue, min(maxValue, value))
@@ -468,10 +486,10 @@ class Data(value: Int, minValue: Int, maxValue: Int, var stepSize: Int, val orie
 }
 
 internal abstract class Tracker(
-        val numberPicker: NumberPicker,
-        private val maxDistance: Int,
-        val orientation: Int,
-        val callback: (Int) -> Unit) {
+    val numberPicker: NumberPicker,
+    private val maxDistance: Int,
+    val arrowOrientation: Int,
+    val callback: (Int) -> Unit) {
 
     internal var started: Boolean = false
     internal var initialValue: Int = 0
@@ -484,7 +502,7 @@ internal abstract class Tracker(
         Timber.i("begin($x, $y)")
         calcDistance()
 
-        downPosition = if (orientation == LinearLayout.VERTICAL) -y else x
+        downPosition = if (arrowOrientation == LinearLayout.VERTICAL) -y else x
         minPoint.set((-minDistance), (-minDistance))
         initialValue = numberPicker.progress
         started = true
@@ -508,7 +526,7 @@ internal abstract class Tracker(
         loc[0] += numberPicker.width / 2
         loc[1] += numberPicker.height / 2
 
-        minDistance = if (orientation == LinearLayout.VERTICAL) {
+        minDistance = if (arrowOrientation == LinearLayout.VERTICAL) {
             min(maxDistance, min(loc[1], metrics.heightPixels - loc[1])).toFloat()
         } else {
             min(maxDistance, min(loc[0], metrics.widthPixels - loc[0])).toFloat()
@@ -517,10 +535,10 @@ internal abstract class Tracker(
 }
 
 internal class ExponentialTracker(
-        numberPicker: NumberPicker,
-        maxDistance: Int,
-        orientation: Int,
-        callback: (Int) -> Unit) : Tracker(numberPicker, maxDistance, orientation, callback) {
+    numberPicker: NumberPicker,
+    maxDistance: Int,
+    arrowOrientation: Int,
+    callback: (Int) -> Unit) : Tracker(numberPicker, maxDistance, arrowOrientation, callback) {
 
     private var time: Long = 1000L
     private var direction: Int = 0
@@ -551,7 +569,7 @@ internal class ExponentialTracker(
     override fun addMovement(x: Float, y: Float) {
         Timber.i("addMovement($x, $y)")
 
-        val currentPosition = if (orientation == LinearLayout.VERTICAL) -y else x
+        val currentPosition = if (arrowOrientation == LinearLayout.VERTICAL) -y else x
         val diff: Float
         val perc: Float
 
@@ -579,15 +597,15 @@ internal class ExponentialTracker(
 }
 
 internal class LinearTracker(
-        numberPicker: NumberPicker,
-        maxDistance: Int,
-        orientation: Int,
-        callback: (Int) -> Unit) : Tracker(numberPicker, maxDistance, orientation, callback) {
+    numberPicker: NumberPicker,
+    maxDistance: Int,
+    arrowOrientation: Int,
+    callback: (Int) -> Unit) : Tracker(numberPicker, maxDistance, arrowOrientation, callback) {
 
 
     override fun addMovement(x: Float, y: Float) {
         Timber.i("addMovement($x, $y)")
-        val currentPosition = if (orientation == LinearLayout.VERTICAL) -y else x
+        val currentPosition = if (arrowOrientation == LinearLayout.VERTICAL) -y else x
 
         val diff: Float
         val perc: Float
