@@ -5,6 +5,7 @@
         <attr name="picker_min" format="integer" />
         <attr name="picker_max" format="integer" />
         <attr name="picker_arrowTint" format="reference" />
+        <attr name="picker_arrowStyle" format="reference" />
         <attr name="picker_editTextStyle" format="reference" />
         <attr name="picker_tooltipAnimationStyle" format="reference" />
         <attr name="picker_tooltipStyle" format="reference" />

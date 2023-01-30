@@ -48,6 +48,7 @@ class NumberPicker @JvmOverloads constructor(
     private var tracker: Tracker
 
     private var arrowTint: Int
+    private var arrowStyleId: Int
     private var editTextStyleId: Int
     private var tooltipStyleId: Int
 
@@ -70,6 +71,9 @@ class NumberPicker @JvmOverloads constructor(
 
             if (editText.text.toString() != data.value.toString())
                 editText.setText(data.value.toString())
+
+            if (value == minValue) downButton.isEnabled = false
+            if (value == maxValue) upButton.isEnabled = false
 
             numberPickerChangeListener?.onProgressChanged(this, progress, fromUser)
         }
@@ -99,9 +103,6 @@ class NumberPicker @JvmOverloads constructor(
 
     init {
         setWillNotDraw(false)
-        isFocusable = true
-        isFocusableInTouchMode = true
-
         gravity = Gravity.CENTER
 
         val array = context.theme.obtainStyledAttributes(attrs, R.styleable.NumberPicker, defStyleAttr, defStyleRes)
@@ -114,6 +115,7 @@ class NumberPicker @JvmOverloads constructor(
             val value = array.getInteger(R.styleable.NumberPicker_android_progress, 0)
             arrowTint = array.getResourceId(R.styleable.NumberPicker_picker_arrowTint, 0)
             background = array.getDrawable(R.styleable.NumberPicker_android_background)
+            arrowStyleId = array.getResourceId(R.styleable.NumberPicker_picker_arrowStyle, 0)
             editTextStyleId = array.getResourceId(R.styleable.NumberPicker_picker_editTextStyle, R.style.NumberPicker_EditTextStyle)
             tooltipStyleId = array.getResourceId(R.styleable.NumberPicker_picker_tooltipStyle, R.style.NumberPicker_ToolTipStyle)
             maxDistance = context.resources.getDimensionPixelSize(R.dimen.picker_distance_max)
@@ -135,7 +137,8 @@ class NumberPicker @JvmOverloads constructor(
 
             editText.setText(data.value.toString())
 
-
+            if (value == minValue) downButton.isEnabled = false
+            if (value == maxValue) upButton.isEnabled = false
         } finally {
             array.recycle()
         }
@@ -149,9 +152,13 @@ class NumberPicker @JvmOverloads constructor(
     }
 
     private fun inflateChildren() {
-        upButton = AppCompatImageButton(context)
-        upButton.setImageResource(R.drawable.arrow_up_selector_24)
-        upButton.setBackgroundResource(R.drawable.arrow_up_background)
+        if (arrowStyleId != 0) {
+            upButton = AppCompatImageButton(ContextThemeWrapper(context, arrowStyleId), null, 0)
+        } else {
+            upButton = AppCompatImageButton(context)
+            upButton.setImageResource(R.drawable.arrow_up_selector_24)
+            upButton.setBackgroundResource(R.drawable.arrow_up_background)
+        }
 
         if (arrowTint > 0) {
             upButton.setColorFilter(ContextCompat.getColor(context, arrowTint))
@@ -164,15 +171,16 @@ class NumberPicker @JvmOverloads constructor(
         editText = EditText(ContextThemeWrapper(context, editTextStyleId), null, 0)
         editText.setLines(1)
         editText.setEms(max(abs(maxValue).toString().length, abs(minValue).toString().length))
-        editText.isFocusableInTouchMode = true
-        editText.isFocusable = true
-        editText.isClickable = true
         editText.isLongClickable = false
 
+        if (arrowStyleId != 0) {
+            downButton = AppCompatImageButton(ContextThemeWrapper(context, arrowStyleId), null, 0)
+        } else {
+            downButton = AppCompatImageButton(context)
+            downButton.setImageResource(R.drawable.arrow_up_selector_24)
+            downButton.setBackgroundResource(R.drawable.arrow_up_background)
+        }
 
-        downButton = AppCompatImageButton(context)
-        downButton.setImageResource(R.drawable.arrow_up_selector_24)
-        downButton.setBackgroundResource(R.drawable.arrow_up_background)
         downButton.rotation = if (data.arrowOrientation == VERTICAL) 180f else -90f
 
         if (arrowTint > 0) {
@@ -236,6 +244,9 @@ class NumberPicker @JvmOverloads constructor(
                         upButton.isPressed = false
                         buttonInterval?.dispose()
                         buttonInterval = null
+
+                        downButton.isEnabled = true
+                        if (progress == maxValue) upButton.isEnabled = false
                     }
                 }
 
@@ -271,7 +282,8 @@ class NumberPicker @JvmOverloads constructor(
                         buttonInterval?.dispose()
                         buttonInterval = null
 
-
+                        upButton.isEnabled = true
+                        if (progress == minValue) downButton.isEnabled = false
                     }
                 }
 

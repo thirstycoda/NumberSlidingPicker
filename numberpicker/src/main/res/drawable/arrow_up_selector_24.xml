@@ -4,6 +4,10 @@
     android:enterFadeDuration="@android:integer/config_shortAnimTime"
     android:exitFadeDuration="@android:integer/config_shortAnimTime">
 
+    <item android:state_enabled="false">
+        <bitmap android:src="@drawable/round_keyboard_arrow_up_black_24" android:tint="@android:color/darker_gray" />
+    </item>
+
     <item android:state_pressed="true">
         <bitmap android:src="@drawable/round_keyboard_arrow_up_black_24" android:tint="?attr/colorControlActivated" />
     </item>

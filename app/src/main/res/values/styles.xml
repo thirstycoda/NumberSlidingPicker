@@ -8,4 +8,10 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <style name="MyArrowStyle" parent="ArrowStyle">
+        <item name="android:src">@drawable/ic_arrow_up_white_24dp</item>
+        <item name="android:background">@drawable/my_arrow_background</item>
+        <item name="android:paddingVertical">10dp</item>
+    </style>
+
 </resources>
