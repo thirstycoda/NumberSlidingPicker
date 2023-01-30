@@ -1,7 +1,6 @@
 package it.sephiroth.android.library.numberpicker
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.graphics.PointF
 import android.os.Handler
@@ -10,7 +9,6 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.appcompat.view.ContextThemeWrapper
@@ -72,8 +70,8 @@ class NumberPicker @JvmOverloads constructor(
             if (editText.text.toString() != data.value.toString())
                 editText.setText(data.value.toString())
 
-            if (value == minValue) downButton.isEnabled = false
-            if (value == maxValue) upButton.isEnabled = false
+            downButton.isEnabled = value > minValue
+            upButton.isEnabled = value < maxValue
 
             numberPickerChangeListener?.onProgressChanged(this, progress, fromUser)
         }
@@ -137,18 +135,13 @@ class NumberPicker @JvmOverloads constructor(
 
             editText.setText(data.value.toString())
 
-            if (value == minValue) downButton.isEnabled = false
-            if (value == maxValue) upButton.isEnabled = false
+            downButton.isEnabled = value > minValue
+            upButton.isEnabled = value < maxValue
         } finally {
             array.recycle()
         }
 
         initializeButtonActions()
-    }
-
-    private fun hideKeyboard() {
-        val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(windowToken, 0)
     }
 
     private fun inflateChildren() {
@@ -244,9 +237,6 @@ class NumberPicker @JvmOverloads constructor(
                         upButton.isPressed = false
                         buttonInterval?.dispose()
                         buttonInterval = null
-
-                        downButton.isEnabled = true
-                        if (progress == maxValue) upButton.isEnabled = false
                     }
                 }
 
@@ -256,6 +246,7 @@ class NumberPicker @JvmOverloads constructor(
 
         downButton.setOnTouchListener { _, event ->
             if (!isEnabled) {
+                upButton.isEnabled = true
                 false
             } else {
                 when (event.actionMasked) {
@@ -281,9 +272,6 @@ class NumberPicker @JvmOverloads constructor(
 
                         buttonInterval?.dispose()
                         buttonInterval = null
-
-                        upButton.isEnabled = true
-                        if (progress == minValue) downButton.isEnabled = false
                     }
                 }
 
