@@ -229,7 +229,13 @@ class NumberPicker @JvmOverloads constructor(
                                 Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe {
-                                setProgress(progress + stepSize)
+                                if (!upButton.isEnabled) {
+                                    upButton.isPressed = false
+                                    buttonInterval?.dispose()
+                                    buttonInterval = null
+                                } else {
+                                    setProgress(progress + stepSize)
+                                }
                             }
                     }
 
@@ -263,7 +269,13 @@ class NumberPicker @JvmOverloads constructor(
                                 Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe {
-                                setProgress(progress - stepSize)
+                                if (!downButton.isEnabled) {
+                                    downButton.isPressed = false
+                                    buttonInterval?.dispose()
+                                    buttonInterval = null
+                                } else {
+                                    setProgress(progress - stepSize)
+                                }
                             }
                     }
 
